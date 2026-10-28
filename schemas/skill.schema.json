@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hidden0705/wp-mcp-skills/schemas/skill.schema.json",
+  "title": "WP MCP Community skill",
+  "description": "Front matter contract for a playbook in skills/<slug>.md.",
+  "type": "object",
+  "required": ["title", "category", "summary"],
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 80,
+      "description": "Human readable title, also used by wpmcp/list-skills."
+    },
+    "category": {
+      "type": "string",
+      "enum": ["Core", "Operations", "Growth", "WooCommerce", "Elementor"]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 200,
+      "description": "One sentence that helps an agent decide whether to load the playbook."
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "GitHub handle or name for attribution."
+    },
+    "license": {
+      "type": "string",
+      "const": "CC-BY-4.0"
+    },
+    "updated": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "override": {
+      "type": "boolean",
+      "description": "Only for a playbook that intentionally replaces a bundled slug. Requires maintainer review."
+    }
+  }
+}

@@ -1,0 +1,82 @@
+name: Publish signed feed
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "skills/**"
+      - "tombstones.json"
+      - "scripts/**"
+      - "schemas/**"
+      - "keys/**"
+      - ".github/workflows/feed.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: signed-feed
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build, sign and publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate every playbook
+        run: python3 scripts/validate.py
+
+      - name: Build the manifest
+        run: |
+          python3 scripts/build_feed.py \
+            --out dist \
+            --base "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/"
+
+      - name: Sign the manifest
+        env:
+          WPMCP_SKILLS_SIGNING_KEY: ${{ secrets.WPMCP_SKILLS_SIGNING_KEY }}
+        run: |
+          if [ -z "$WPMCP_SKILLS_SIGNING_KEY" ]; then
+            echo "::error::WPMCP_SKILLS_SIGNING_KEY is not set on this repository"
+            exit 1
+          fi
+          umask 077
+          printf '%s\n' "$WPMCP_SKILLS_SIGNING_KEY" > "$RUNNER_TEMP/signing-key.pem"
+          WPMCP_SKILLS_SIGNING_KEY_FILE="$RUNNER_TEMP/signing-key.pem" \
+            bash scripts/sign_manifest.sh dist/manifest.json dist/manifest.json.sig
+          rm -f "$RUNNER_TEMP/signing-key.pem"
+
+      - name: Verify the signature against the shipped public key
+        run: |
+          base64 -d dist/manifest.json.sig > "$RUNNER_TEMP/manifest.sig.bin"
+          openssl dgst -sha256 -verify keys/feed-public.pem \
+            -signature "$RUNNER_TEMP/manifest.sig.bin" dist/manifest.json
+          python3 - <<'PY'
+          import json, pathlib
+          manifest = json.loads(pathlib.Path("dist/manifest.json").read_text())
+          print("schema:", manifest["schema"])
+          print("generated:", manifest["generated"])
+          print("min_plugin:", manifest["min_plugin"])
+          print("skills:", len(manifest["skills"]))
+          print("deleted:", len(manifest.get("deleted", [])))
+          for slug in sorted(manifest["skills"]):
+              print(" -", slug)
+          PY
+
+      - name: Publish the feed release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view feed >/dev/null 2>&1 || \
+            gh release create feed \
+              --title "Signed skill feed" \
+              --notes "Signed manifest for the WP MCP Abilities community skill feed. Install nothing by hand: the plugin verifies the signature, sha256 and byte count of every file." \
+              --latest=false
+          gh release upload feed dist/manifest.json dist/manifest.json.sig --clobber
+          echo "Feed URL: https://github.com/${GITHUB_REPOSITORY}/releases/download/feed/manifest.json"
