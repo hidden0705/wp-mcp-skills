@@ -21,7 +21,8 @@ scripts/                  validation and manifest build
 The plugin reads a signed manifest from
 `https://github.com/hidden0705/wp-mcp-skills/releases/download/feed/manifest.json`.
 Every installed site checks it twice a day and downloads only the playbooks that
-changed.
+changed. On hosts that disable WP-Cron, the check runs on the first MCP request
+after the interval instead.
 
 ## Precedence
 
@@ -38,7 +39,17 @@ marks them `override`, which review has to approve.
 
 ## Contribute
 
-1. Copy an existing file in `skills/` and change the front matter.
+1. Copy an existing file in `skills/` and change the front matter, or export a
+   playbook your agent wrote on a real site:
+
+   ```bash
+   wp wpmcp export --author=your-handle --dry-run
+   wp wpmcp export --author=your-handle
+   ```
+
+   The export scrubs your domain, emails and absolute paths, refuses files that
+   look like they contain a secret, and writes the front matter this repository
+   expects into `wp-content/wpmcp-export/`.
 2. Keep it generic: `example.com`, no real domains, no credentials, no customer
    data, no site-specific paths.
 3. Run `python3 scripts/validate.py` locally.

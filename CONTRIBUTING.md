@@ -53,6 +53,28 @@ CI blocks obvious problems (secrets, emails, `db drop`, `DROP TABLE`,
 - Could a prompt injection hide in a quoted instruction or a URL?
 - Does it tell the agent to skip a backup or a `confirm: true` gate?
 
+## Exporting from a WordPress site
+
+If the playbook was written on a live site with `wpmcp/skill-write`, export it
+instead of copying it by hand. The command scrubs the site out of the text and
+writes the front matter this repository expects.
+
+```bash
+wp wpmcp export --author=your-handle --dry-run
+wp wpmcp export --author=your-handle
+```
+
+Output lands in `wp-content/wpmcp-export/`. It replaces your domain and host with
+`example.com`, every email with `admin@example.com`, and absolute paths with
+`/path/to/wordpress/...`. A file that looks like it contains a token or password is
+skipped with a warning, and a slug that already exists in the plugin's bundled
+library is skipped unless you pass `--allow-override` (which writes
+`override: true` and needs a maintainer's agreement in the PR).
+
+Review the scrub result before you commit. The command is a safety net, not a
+review: it cannot tell whether a sentence is correct, and it cannot see a secret
+that does not match a known pattern.
+
 ## Local checks
 
 ```bash
